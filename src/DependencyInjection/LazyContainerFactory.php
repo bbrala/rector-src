@@ -514,7 +514,7 @@ final class LazyContainerFactory
             ClassNameImportSkipVoterInterface::class
         );
 
-        $rectorConfig->alias(RectorStyle::class, SymfonyStyle::class);
+        $rectorConfig->alias(SymfonyStyle::class, RectorStyle::class);
 
         $rectorConfig->singleton(
             SymfonyStyle::class,
