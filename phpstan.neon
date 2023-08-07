@@ -714,3 +714,9 @@ parameters:
         -
             message: '#\$this as argument is not allowed\. Refactor method to service composition#'
             path: src/Console/ConsoleApplication.php
+
+        -
+            message: '#Make callable type explicit\. Here is how\: https\://phpstan\.org/writing\-php\-code/phpdoc\-types\#callables#'
+            path: packages/Config/RectorConfig.php
+
+        - '#Method Rector\\Core\\PhpParser\\NodeTraverser\\RectorNodeTraverser\:\:__construct\(\) has parameter \$phpRectors with no value type specified in iterable type iterable#'

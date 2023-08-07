@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rector\Testing\PHPUnit;
 
+use Illuminate\Container\RewindableGenerator;
 use Iterator;
 use Nette\Utils\FileSystem;
 use Nette\Utils\Strings;
@@ -15,7 +16,9 @@ use Rector\Core\Autoloading\BootstrapFilesIncluder;
 use Rector\Core\Configuration\ConfigurationFactory;
 use Rector\Core\Configuration\Option;
 use Rector\Core\Configuration\Parameter\SimpleParameterProvider;
+use Rector\Core\Contract\Rector\PhpRectorInterface;
 use Rector\Core\Exception\ShouldNotHappenException;
+use Rector\Core\PhpParser\NodeTraverser\RectorNodeTraverser;
 use Rector\Core\ValueObject\Application\File;
 use Rector\NodeTypeResolver\Reflection\BetterReflection\SourceLocatorProvider\DynamicSourceLocatorProvider;
 use Rector\Testing\Contract\RectorTestInterface;
@@ -38,8 +41,18 @@ abstract class AbstractRectorTestCase extends AbstractLazyTestCase implements Re
         $this->includePreloadFilesAndScoperAutoload();
 
         $configFile = $this->provideConfigFilePath();
-
         $this->bootFromConfigFiles([$configFile]);
+
+        // cleanup all registered rectors, so you can use only the new ones
+
+        $container = self::getContainer();
+        $phpRectorsGenerator = $container->tagged(PhpRectorInterface::class);
+
+        if ($phpRectorsGenerator instanceof RewindableGenerator) {
+            $phpRectors = iterator_to_array($phpRectorsGenerator->getIterator());
+            $rectorNodeTraverser = $container->make(RectorNodeTraverser::class);
+            $rectorNodeTraverser->refreshPhpRectors($phpRectors);
+        }
 
         $this->applicationFileProcessor = $this->make(ApplicationFileProcessor::class);
         $this->dynamicSourceLocatorProvider = $this->make(DynamicSourceLocatorProvider::class);

@@ -4,23 +4,15 @@ declare(strict_types=1);
 
 namespace Rector\Testing\PHPUnit;
 
-use Illuminate\Container\Container;
 use PHPUnit\Framework\TestCase;
+use Rector\Config\RectorConfig;
+use Rector\Core\Contract\Rector\RectorInterface;
 use Rector\Core\DependencyInjection\LazyContainerFactory;
+use Webmozart\Assert\Assert;
 
 abstract class AbstractLazyTestCase extends TestCase
 {
-    private static ?Container $container = null;
-
-    protected static function getContainer(): Container
-    {
-        if (! self::$container instanceof Container) {
-            $lazyContainerFactory = new LazyContainerFactory();
-            self::$container = $lazyContainerFactory->create();
-        }
-
-        return self::$container;
-    }
+    private static ?RectorConfig $container = null;
 
     /**
      * @template TType as object
@@ -29,21 +21,40 @@ abstract class AbstractLazyTestCase extends TestCase
      */
     protected function make(string $class): object
     {
-<<<<<<< HEAD
         return self::getContainer()->make($class);
     }
 
-    protected static function getContainer(): Container
+    /**
+     * @param string[] $configFiles
+     */
+    protected function bootFromConfigFiles(array $configFiles): void
     {
-        if (! self::$container instanceof Container) {
+        $container = self::getContainer();
+        foreach ($configFiles as $configFile) {
+            $configClosure = require $configFile;
+            Assert::isCallable($configClosure);
+
+            $configClosure($container);
+        }
+    }
+
+    protected static function getContainer(): RectorConfig
+    {
+        if (! self::$container instanceof RectorConfig) {
             $lazyContainerFactory = new LazyContainerFactory();
             self::$container = $lazyContainerFactory->create();
         }
 
         return self::$container;
-=======
+    }
+
+    protected function forgetRectorsRules()
+    {
         $container = self::getContainer();
-        return $container->make($class);
->>>>>>> 2958bc3d19 (refactor RectorConfig to Laravel container)
+
+        $rectors = $container->tagged(RectorInterface::class);
+        foreach ($rectors as $rector) {
+            $container->forgetInstance($rector);
+        }
     }
 }
