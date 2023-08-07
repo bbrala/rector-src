@@ -6,8 +6,11 @@ namespace Rector\Testing\PHPUnit;
 
 use PHPUnit\Framework\TestCase;
 use Rector\Config\RectorConfig;
+use Rector\Core\Contract\Rector\PhpRectorInterface;
 use Rector\Core\Contract\Rector\RectorInterface;
 use Rector\Core\DependencyInjection\LazyContainerFactory;
+use Rector\Core\Util\Reflection\PrivatesAccessor;
+use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Webmozart\Assert\Assert;
 
 abstract class AbstractLazyTestCase extends TestCase
@@ -52,9 +55,18 @@ abstract class AbstractLazyTestCase extends TestCase
     {
         $container = self::getContainer();
 
+        $privatesAccessor = new PrivatesAccessor();
+
         $rectors = $container->tagged(RectorInterface::class);
         foreach ($rectors as $rector) {
-            $container->forgetInstance($rector);
+            $container->forgetInstance(get_class($rector));
+
+            $privatesAccessor->propertyClosure($container, 'tags', function ($tags) use ($rector) {
+                unset($tags[RectorInterface::class]);
+                unset($tags[PhpRectorInterface::class]);
+
+                return $tags;
+            });
         }
     }
 }

@@ -40,13 +40,16 @@ abstract class AbstractRectorTestCase extends AbstractLazyTestCase implements Re
 
         $this->includePreloadFilesAndScoperAutoload();
 
-        $configFile = $this->provideConfigFilePath();
-        $this->bootFromConfigFiles([$configFile]);
-
         // cleanup all registered rectors, so you can use only the new ones
 
         $container = self::getContainer();
+        $this->forgetRectorsRules();
+
+        $configFile = $this->provideConfigFilePath();
+        $this->bootFromConfigFiles([$configFile]);
+
         $phpRectorsGenerator = $container->tagged(PhpRectorInterface::class);
+
 
         if ($phpRectorsGenerator instanceof RewindableGenerator) {
             $phpRectors = iterator_to_array($phpRectorsGenerator->getIterator());
