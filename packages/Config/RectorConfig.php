@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace Rector\Config;
 
+use Illuminate\Container\Container;
 use Rector\Caching\Contract\ValueObject\Storage\CacheStorageInterface;
 use Rector\Core\Configuration\Option;
 use Rector\Core\Configuration\Parameter\SimpleParameterProvider;
-use Rector\Core\Configuration\ValueObjectInliner;
 use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
 use Rector\Core\Contract\Rector\NonPhpRectorInterface;
 use Rector\Core\Contract\Rector\PhpRectorInterface;
 use Rector\Core\Contract\Rector\RectorInterface;
 use Rector\Core\Exception\ShouldNotHappenException;
 use Rector\Core\ValueObject\PhpVersion;
-use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
-use Symfony\Component\DependencyInjection\Loader\Configurator\ServiceConfigurator;
-use Symfony\Component\DependencyInjection\Loader\Configurator\ServicesConfigurator;
+//use Symfony\Component\DependencyInjection\Loader\Configurator\ServiceConfigurator;
+//use Symfony\Component\DependencyInjection\Loader\Configurator\ServicesConfigurator;
 use Webmozart\Assert\Assert;
 
 /**
@@ -24,9 +23,9 @@ use Webmozart\Assert\Assert;
  * Same as Symfony container configurator, with patched return type for "set()" method for easier DX.
  * It is an alias for internal class that is prefixed during build, so it's basically for keeping stable public API.
  */
-final class RectorConfig extends ContainerConfigurator
+final class RectorConfig extends Container
 {
-    private ?ServicesConfigurator $servicesConfigurator = null;
+    //    private ?ServicesConfigurator $servicesConfigurator = null;
 
     /**
      * @param string[] $paths
@@ -120,21 +119,15 @@ final class RectorConfig extends ContainerConfigurator
         Assert::isAOf($rectorClass, ConfigurableRectorInterface::class);
 
         // decorate with value object inliner so Symfony understands, see https://getrector.com/blog/2020/09/07/how-to-inline-value-object-in-symfony-php-config
-        array_walk_recursive($configuration, static function (&$value) {
-            if (is_object($value)) {
-                $value = ValueObjectInliner::inline($value);
-            }
+        //        array_walk_recursive($configuration, static function (&$value) {
 
-            return $value;
+
+        $this->singleton($rectorClass);
+        $this->tagRectorService($rectorClass);
+
+        $this->extend($rectorClass, function (ConfigurableRectorInterface $configurableRector) use ($configuration) {
+            $configurableRector->configure([$configuration]);
         });
-
-        $servicesConfigurator = $this->getServices();
-
-        $rectorService = $servicesConfigurator->set($rectorClass)
-            ->public()
-            ->autowire()
-            ->call('configure', [$configuration]);
-        $this->tagRectorService($rectorService, $rectorClass);
     }
 
     /**
@@ -145,13 +138,8 @@ final class RectorConfig extends ContainerConfigurator
         Assert::classExists($rectorClass);
         Assert::isAOf($rectorClass, RectorInterface::class);
 
-        $servicesConfigurator = $this->getServices();
-
-        $rectorService = $servicesConfigurator->set($rectorClass)
-            ->public()
-            ->autowire();
-
-        $this->tagRectorService($rectorService, $rectorClass);
+        $this->singleton($rectorClass);
+        $this->tagRectorService($rectorClass);
     }
 
     /**
@@ -229,12 +217,11 @@ final class RectorConfig extends ContainerConfigurator
         SimpleParameterProvider::setParameter(Option::CACHE_DIR, $directoryPath);
     }
 
+    /**
+     * @deprecated Needed only for removed symfony di
+     */
     public function containerCacheDirectory(string $directoryPath): void
     {
-        // container cache directory path must be a directory on the first place
-        Assert::directory($directoryPath);
-
-        SimpleParameterProvider::setParameter(Option::CONTAINER_CACHE_DIRECTORY, $directoryPath);
     }
 
     /**
@@ -256,6 +243,15 @@ final class RectorConfig extends ContainerConfigurator
         SimpleParameterProvider::setParameter(Option::INDENT_SIZE, $count);
     }
 
+    public function import(string $setFilePath): void
+    {
+        $self = $this;
+        $closureFilePath = (require $setFilePath);
+
+        \Webmozart\Assert\Assert::isCallable($closureFilePath);
+        $closureFilePath($self);
+    }
+
     /**
      * @param string[] $values
      * @return string[]
@@ -274,27 +270,17 @@ final class RectorConfig extends ContainerConfigurator
         return array_unique($duplicates);
     }
 
-    private function getServices(): ServicesConfigurator
-    {
-        if ($this->servicesConfigurator instanceof ServicesConfigurator) {
-            return $this->servicesConfigurator;
-        }
-
-        $this->servicesConfigurator = $this->services();
-        return $this->servicesConfigurator;
-    }
-
     /**
      * @param class-string<RectorInterface|PhpRectorInterface|NonPhpRectorInterface> $rectorClass
      */
-    private function tagRectorService(ServiceConfigurator $rectorServiceConfigurator, string $rectorClass): void
+    private function tagRectorService(string $rectorClass): void
     {
-        $rectorServiceConfigurator->tag(RectorInterface::class);
+        $this->tag($rectorClass, RectorInterface::class);
 
         if (is_a($rectorClass, PhpRectorInterface::class, true)) {
-            $rectorServiceConfigurator->tag(PhpRectorInterface::class);
+            $this->tag($rectorClass, PhpRectorInterface::class);
         } elseif (is_a($rectorClass, NonPhpRectorInterface::class, true)) {
-            $rectorServiceConfigurator->tag(NonPhpRectorInterface::class);
+            $this->tag($rectorClass, NonPhpRectorInterface::class);
         }
     }
 }

@@ -23,7 +23,7 @@ use Rector\Testing\Fixture\FixtureFileFinder;
 use Rector\Testing\Fixture\FixtureFileUpdater;
 use Rector\Testing\Fixture\FixtureSplitter;
 
-abstract class AbstractRectorTestCase extends AbstractTestCase implements RectorTestInterface
+abstract class AbstractRectorTestCase extends AbstractLazyTestCase implements RectorTestInterface
 {
     private DynamicSourceLocatorProvider $dynamicSourceLocatorProvider;
 
@@ -38,17 +38,18 @@ abstract class AbstractRectorTestCase extends AbstractTestCase implements Rector
         $this->includePreloadFilesAndScoperAutoload();
 
         $configFile = $this->provideConfigFilePath();
+
         $this->bootFromConfigFiles([$configFile]);
 
-        $this->applicationFileProcessor = $this->getService(ApplicationFileProcessor::class);
-        $this->dynamicSourceLocatorProvider = $this->getService(DynamicSourceLocatorProvider::class);
+        $this->applicationFileProcessor = $this->make(ApplicationFileProcessor::class);
+        $this->dynamicSourceLocatorProvider = $this->make(DynamicSourceLocatorProvider::class);
 
         /** @var AdditionalAutoloader $additionalAutoloader */
-        $additionalAutoloader = $this->getService(AdditionalAutoloader::class);
+        $additionalAutoloader = $this->make(AdditionalAutoloader::class);
         $additionalAutoloader->autoloadPaths();
 
         /** @var BootstrapFilesIncluder $bootstrapFilesIncluder */
-        $bootstrapFilesIncluder = $this->getService(BootstrapFilesIncluder::class);
+        $bootstrapFilesIncluder = $this->make(BootstrapFilesIncluder::class);
         $bootstrapFilesIncluder->includeBootstrapFiles();
         $bootstrapFilesIncluder->includePHPStanExtensionsBoostrapFiles();
     }
@@ -160,11 +161,11 @@ abstract class AbstractRectorTestCase extends AbstractTestCase implements Rector
 
         // needed for PHPStan, because the analyzed file is just created in /temp - need for trait and similar deps
         /** @var NodeScopeResolver $nodeScopeResolver */
-        $nodeScopeResolver = $this->getService(NodeScopeResolver::class);
+        $nodeScopeResolver = $this->make(NodeScopeResolver::class);
         $nodeScopeResolver->setAnalysedFiles([$filePath]);
 
         /** @var ConfigurationFactory $configurationFactory */
-        $configurationFactory = $this->getService(ConfigurationFactory::class);
+        $configurationFactory = $this->make(ConfigurationFactory::class);
         $configuration = $configurationFactory->createForTests([$filePath]);
 
         $file = new File($filePath, $inputFileContents);
